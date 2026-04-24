@@ -1,0 +1,299 @@
+-- =============================================
+-- CREATE DATABASE
+-- =============================================
+
+DROP DATABASE IF EXISTS RGI_Truckingg;
+
+CREATE DATABASE IF NOT EXISTS RGI_Truckingg;
+USE RGI_Truckingg;
+
+
+-- =============================================
+-- CORE ENTITIES (from Question 1.1 table)
+-- =============================================
+
+-- Truck table
+CREATE TABLE Truck (
+    Truck_ID VARCHAR(20) PRIMARY KEY,
+    Truck_Desc VARCHAR(100) NOT NULL
+);
+
+-- Route table
+CREATE TABLE Route (
+    Route_ID VARCHAR(10) PRIMARY KEY
+);
+
+-- Emergency table (for First Responder to attend)
+CREATE TABLE Emergency (
+    Emergency_ID INT AUTO_INCREMENT PRIMARY KEY,
+    Route_ID VARCHAR(10) NOT NULL,
+    Incident_Time DATETIME,
+    Description TEXT,
+    FOREIGN KEY (Route_ID) REFERENCES Route(Route_ID)
+);
+
+
+-- =============================================
+-- Employee SUPERCLASS
+-- =============================================
+
+CREATE TABLE Employee (
+    Employee_ID VARCHAR(10) PRIMARY KEY,
+    First_Name VARCHAR(50) NOT NULL,
+    Last_Name VARCHAR(50) NOT NULL,
+    Employee_Type VARCHAR(20) NOT NULL
+);
+
+
+-- =============================================
+-- Employee SUBCLASSES (Disjoint Specialization)
+-- =============================================
+
+-- Driver
+CREATE TABLE Driver (
+    Employee_ID VARCHAR(10) PRIMARY KEY,
+    Licence_Type VARCHAR(20) NOT NULL,
+    Driver_Desc VARCHAR(50),
+    Truck_ID VARCHAR(20),
+    Route_ID VARCHAR(10),
+    FOREIGN KEY (Employee_ID) REFERENCES Employee(Employee_ID) ON DELETE CASCADE,
+    FOREIGN KEY (Truck_ID) REFERENCES Truck(Truck_ID),
+    FOREIGN KEY (Route_ID) REFERENCES Route(Route_ID)
+);
+
+-- Dispatcher
+CREATE TABLE Dispatcher (
+    Employee_ID VARCHAR(10) PRIMARY KEY,
+    Shift VARCHAR(20),
+    FOREIGN KEY (Employee_ID) REFERENCES Employee(Employee_ID) ON DELETE CASCADE
+);
+
+-- First Responder
+CREATE TABLE First_Responder (
+    Employee_ID VARCHAR(10) PRIMARY KEY,
+    Certification VARCHAR(50),
+    FOREIGN KEY (Employee_ID) REFERENCES Employee(Employee_ID) ON DELETE CASCADE
+);
+
+-- Mechanic
+CREATE TABLE Mechanic (
+    Employee_ID VARCHAR(10) PRIMARY KEY,
+    Specialization VARCHAR(50),
+    FOREIGN KEY (Employee_ID) REFERENCES Employee(Employee_ID) ON DELETE CASCADE
+);
+
+-- Clerk
+CREATE TABLE Clerk (
+    Employee_ID VARCHAR(10) PRIMARY KEY,
+    Admin_Role VARCHAR(50),
+    FOREIGN KEY (Employee_ID) REFERENCES Employee(Employee_ID) ON DELETE CASCADE
+);
+
+
+-- =============================================
+-- RELATIONSHIP TABLES (from Business Rules)
+-- =============================================
+
+-- 1. Dispatcher assigns Routes to Trucks (M:N relationship)
+CREATE TABLE Route_Assignment (
+    Assignment_ID INT AUTO_INCREMENT PRIMARY KEY,
+    Dispatcher_ID VARCHAR(10) NOT NULL,
+    Truck_ID VARCHAR(20) NOT NULL,
+    Route_ID VARCHAR(10) NOT NULL,
+    Assignment_Date DATE NOT NULL,
+    FOREIGN KEY (Dispatcher_ID) REFERENCES Dispatcher(Employee_ID),
+    FOREIGN KEY (Truck_ID) REFERENCES Truck(Truck_ID),
+    FOREIGN KEY (Route_ID) REFERENCES Route(Route_ID)
+);
+
+-- 2. Dispatcher Dispatches First Responder to Emergency
+CREATE TABLE Dispatch (
+    Dispatch_ID INT AUTO_INCREMENT PRIMARY KEY,
+    Dispatcher_ID VARCHAR(10) NOT NULL,
+    FirstResponder_ID VARCHAR(10) NOT NULL,
+    Emergency_ID INT NOT NULL,
+    Dispatch_Time DATETIME NOT NULL,
+    FOREIGN KEY (Dispatcher_ID) REFERENCES Dispatcher(Employee_ID),
+    FOREIGN KEY (FirstResponder_ID) REFERENCES First_Responder(Employee_ID),
+    FOREIGN KEY (Emergency_ID) REFERENCES Emergency(Emergency_ID)
+);
+
+-- 3. Mechanic maintains Trucks (M:N relationship)
+CREATE TABLE Maintenance (
+    Maintenance_ID INT AUTO_INCREMENT PRIMARY KEY,
+    Mechanic_ID VARCHAR(10) NOT NULL,
+    Truck_ID VARCHAR(20) NOT NULL,
+    Maintenance_Date DATE NOT NULL,
+    Work_Performed TEXT,
+    FOREIGN KEY (Mechanic_ID) REFERENCES Mechanic(Employee_ID),
+    FOREIGN KEY (Truck_ID) REFERENCES Truck(Truck_ID)
+);
+
+-- 4. Clerk logs Maintenance query with Mechanic
+CREATE TABLE Maintenance_Query (
+    Query_ID INT AUTO_INCREMENT PRIMARY KEY,
+    Clerk_ID VARCHAR(10) NOT NULL,
+    Mechanic_ID VARCHAR(10) NOT NULL,
+    Truck_ID VARCHAR(20) NOT NULL,
+    Query_Date DATE NOT NULL,
+    Description TEXT NOT NULL,
+    Status VARCHAR(20) DEFAULT 'Open',
+    FOREIGN KEY (Clerk_ID) REFERENCES Clerk(Employee_ID),
+    FOREIGN KEY (Mechanic_ID) REFERENCES Mechanic(Employee_ID),
+    FOREIGN KEY (Truck_ID) REFERENCES Truck(Truck_ID)
+);
+
+-- 5. Clerk assigns Dispatcher shifts (M:N relationship)
+CREATE TABLE Shift_Assignment (
+    Shift_ID INT AUTO_INCREMENT PRIMARY KEY,
+    Clerk_ID VARCHAR(10) NOT NULL,
+    Dispatcher_ID VARCHAR(10) NOT NULL,
+    Shift_Date DATE NOT NULL,
+    Shift_Type VARCHAR(20) NOT NULL,
+    FOREIGN KEY (Clerk_ID) REFERENCES Clerk(Employee_ID),
+    FOREIGN KEY (Dispatcher_ID) REFERENCES Dispatcher(Employee_ID)
+);
+
+
+-- =============================================
+-- INSERT DATA FROM QUESTION 1.1 TABLE
+-- =============================================
+
+-- Insert Trucks (original 8 trucks)
+INSERT INTO Truck (Truck_ID, Truck_Desc) VALUES
+('FG 87 FB ZN', 'Purple with yellow trim'),
+('FF 88 HH ZN', 'Blue'),
+('DDD ZN', 'Northen Blue'),
+('KING S ZN', 'Gold with gold rims'),
+('LITTLE ZN', 'Pink with mockingjay hood ornament'),
+('1 MAN ZN', 'White'),
+('HY PP FG ZN', 'Red'),
+('HOLD ZN', 'Black');
+
+-- Insert new truck for Trendt (INSERT BEFORE using it in Driver)
+INSERT INTO Truck (Truck_ID, Truck_Desc) VALUES 
+('TRNDT001', 'Matte Black with Red Stripes');
+
+-- Insert Routes
+INSERT INTO Route (Route_ID) VALUES
+('N3'), ('M4'), ('N2'), ('M16'), ('N1'), ('N7'), ('M27'), ('N4');
+
+-- Insert Employees (original Drivers from the table)
+INSERT INTO Employee (Employee_ID, First_Name, Last_Name, Employee_Type) VALUES
+('RGI-D25', 'John', 'Snow', 'Driver'),
+('RGI-F45', 'Aegon', 'Targaryen', 'Driver'),
+('RGI-G56', 'Rob', 'Stark', 'Driver'),
+('RGI-F70', 'Jamie', 'Lannister', 'Driver'),
+('RGI-Z56', 'Petyr', 'Baelish', 'Driver'),
+('RGI-Q34', 'Jaqen', 'H''ghar', 'Driver'),
+('RGI-P90', 'Theon', 'Greyjoy', 'Driver'),
+('RGI-T89', 'Hodor', 'Hodor', 'Driver');
+
+-- Insert my Employee record (Trendt)
+INSERT INTO Employee (Employee_ID, First_Name, Last_Name, Employee_Type) VALUES
+('RGI-DBS', 'Trendt', 'Adams', 'Driver');
+
+-- Insert Drivers (original 8 drivers)
+INSERT INTO Driver (Employee_ID, Licence_Type, Driver_Desc, Truck_ID, Route_ID) VALUES
+('RGI-D25', 'Class B', 'FB', 'FG 87 FB ZN', 'N3'),
+('RGI-F45', 'Class A', 'FF', 'FF 88 HH ZN', 'M4'),
+('RGI-G56', 'Class A', 'DDD', 'DDD ZN', 'N2'),
+('RGI-F70', 'Class A', 'KING', 'KING S ZN', 'M16'),
+('RGI-Z56', 'Class C', 'LITTLE', 'LITTLE ZN', 'N1'),
+('RGI-Q34', 'Class A', '1 MAN', '1 MAN ZN', 'N7'),
+('RGI-P90', 'Class C', 'HY', 'HY PP FG ZN', 'M27'),
+('RGI-T89', 'Class B', 'HOLD', 'HOLD ZN', 'N4');
+
+-- Insert my Driver record (NOW Truck 'TRNDT001' exists)
+INSERT INTO Driver (Employee_ID, Licence_Type, Driver_Desc, Truck_ID, Route_ID) VALUES
+('RGI-DBS', 'Class A', 'STAR', 'TRNDT001', 'N1');
+
+
+-- =============================================
+-- INSERT SAMPLE DATA FOR OTHER EMPLOYEE TYPES
+-- =============================================
+
+-- Insert sample Dispatchers
+INSERT INTO Employee (Employee_ID, First_Name, Last_Name, Employee_Type) VALUES
+('DSP001', 'Tyrion', 'Lannister', 'Dispatcher'),
+('DSP002', 'Varys', 'Unknown', 'Dispatcher');
+
+INSERT INTO Dispatcher (Employee_ID, Shift) VALUES
+('DSP001', 'Morning'),
+('DSP002', 'Night');
+
+-- Insert sample First Responders
+INSERT INTO Employee (Employee_ID, First_Name, Last_Name, Employee_Type) VALUES
+('FR001', 'Brienne', 'Tarth', 'FirstResponder'),
+('FR002', 'Arya', 'Stark', 'FirstResponder');
+
+INSERT INTO First_Responder (Employee_ID, Certification) VALUES
+('FR001', 'Emergency Medical'),
+('FR002', 'Rescue Specialist');
+
+-- Insert sample Mechanics
+INSERT INTO Employee (Employee_ID, First_Name, Last_Name, Employee_Type) VALUES
+('MEC001', 'Sandor', 'Clegane', 'Mechanic'),
+('MEC002', 'Gendry', 'Baratheon', 'Mechanic');
+
+INSERT INTO Mechanic (Employee_ID, Specialization) VALUES
+('MEC001', 'Engine'),
+('MEC002', 'Electrical');
+
+-- Insert sample Clerks
+INSERT INTO Employee (Employee_ID, First_Name, Last_Name, Employee_Type) VALUES
+('CLK001', 'Sansa', 'Stark', 'Clerk'),
+('CLK002', 'Missandei', 'Naive', 'Clerk');
+
+INSERT INTO Clerk (Employee_ID, Admin_Role) VALUES
+('CLK001', 'Senior Administrator'),
+('CLK002', 'Junior Clerk');
+
+-- Insert sample Emergency (for Route N1 and N3)
+INSERT INTO Emergency (Route_ID, Incident_Time, Description) VALUES
+('N1', '2024-01-15 14:30:00', 'Accident at intersection'),
+('N3', '2024-01-16 09:15:00', 'Vehicle breakdown');
+
+-- Insert sample Dispatch (Dispatcher dispatches First Responder)
+INSERT INTO Dispatch (Dispatcher_ID, FirstResponder_ID, Emergency_ID, Dispatch_Time) VALUES
+('DSP001', 'FR001', 1, '2024-01-15 14:32:00'),
+('DSP002', 'FR002', 2, '2024-01-16 09:20:00');
+
+-- Insert sample Route Assignment (Dispatcher assigns routes to trucks)
+INSERT INTO Route_Assignment (Dispatcher_ID, Truck_ID, Route_ID, Assignment_Date) VALUES
+('DSP001', 'FG 87 FB ZN', 'N1', '2024-01-15'),
+('DSP002', 'FF 88 HH ZN', 'M4', '2024-01-16');
+
+-- Insert sample Maintenance (Mechanic maintains trucks)
+INSERT INTO Maintenance (Mechanic_ID, Truck_ID, Maintenance_Date, Work_Performed) VALUES
+('MEC001', 'FG 87 FB ZN', '2024-01-10', 'Oil change and tire rotation'),
+('MEC002', 'HOLD ZN', '2024-01-12', 'Brake replacement');
+
+-- Insert sample Maintenance Query (Clerk logs query with mechanic)
+INSERT INTO Maintenance_Query (Clerk_ID, Mechanic_ID, Truck_ID, Query_Date, Description, Status) VALUES
+('CLK001', 'MEC001', 'KING S ZN', '2024-01-14', 'Engine making unusual noise', 'Assigned'),
+('CLK002', 'MEC002', '1 MAN ZN', '2024-01-15', 'Electrical issue with lights', 'Open');
+
+-- Insert sample Shift Assignment (Clerk assigns dispatcher shifts)
+INSERT INTO Shift_Assignment (Clerk_ID, Dispatcher_ID, Shift_Date, Shift_Type) VALUES
+('CLK001', 'DSP001', '2024-01-20', 'Morning'),
+('CLK001', 'DSP002', '2024-01-20', 'Night');
+
+
+-- =============================================
+-- QUERY TO RECREATE ORIGINAL REPORT (Question 2.2)
+-- =============================================
+
+SELECT 
+    d.Employee_ID AS Driver_ID,
+    e.First_Name AS Driver_Name,
+    e.Last_Name AS Driver_Surname,
+    d.Licence_Type,
+    d.Driver_Desc,
+    d.Truck_ID,
+    t.Truck_Desc,
+    d.Route_ID AS Route 
+FROM Driver d
+JOIN Employee e ON d.Employee_ID = e.Employee_ID
+JOIN Truck t ON d.Truck_ID = t.Truck_ID
+ORDER BY d.Employee_ID;
